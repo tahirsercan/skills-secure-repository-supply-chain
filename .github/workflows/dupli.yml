@@ -1,4 +1,4 @@
-name: jscpd PR Check
+Detect Code Duplication
 
 on:
   pull_request:
@@ -6,18 +6,20 @@ on:
       - main
 
 jobs:
-  jscpd-check:
+  duplication-check:
+    name: Detect Code Duplication
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Tüm geçmişi al
 
-      - name: Set base branch for comparison
-        run: |
-          echo "BASE_BRANCH=$(git merge-base origin/main HEAD)" >> $GITHUB_ENV
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
 
       - name: Install jscpd
         run: npm install -g jscpd
@@ -25,26 +27,10 @@ jobs:
       - name: Get changed files
         id: changed-files
         run: |
-          CHANGED_FILES=$(git diff --name-only $BASE_BRANCH HEAD | grep -E '\.js|\.ts|\.py|\.java|\.go|\.php|\.c|\.cpp|\.cs' || true)
+          CHANGED_FILES=$(git diff --name-only origin/main | tr '\n' ' ')
           echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "No relevant files changed."
-            exit 0  # Important: Exit early if no files changed
-          fi
-
-      - name: Run jscpd only on changed files
+      - name: Run jscpd on changed files
         if: env.CHANGED_FILES != ''
-        run: jscpd --min-tokens 50 --reporters json --files ${{ env.CHANGED_FILES }}
-
-      - name: Check for report.json and upload
-        if: env.CHANGED_FILES != ''  # Only run if files were checked
         run: |
-          if [[ -f report.json ]]; then
-            echo "Uploading jscpd report..."
-            uses: actions/upload-artifact@v3
-            with:
-              name: jscpd-report
-              path: report.json
-          else
-            echo "No jscpd report generated (likely no duplication found)."
-          fi
+          echo "Changed files: $CHANGED_FILES"
+          jscpd --min-tokens 20 --threshold 1 --reporters console $CHANGED_FILES
