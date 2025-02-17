@@ -1,57 +1,64 @@
-name: jscpd PR Check
+name: Kod Tekrarı Kontrolü
 
 on:
   pull_request:
     branches:
-      - main
+      - main  # veya ana dalınızın adı
 
 jobs:
-  jscpd-check:
+  jscpd-kontrol:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Depoyu Kontrol Et
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Tam geçmiş için
 
-      - name: Set base branch for comparison
-        run: echo "BASE_BRANCH=$(git merge-base origin/main HEAD)" >> $GITHUB_ENV
-
-      - name: Install jscpd
+      - name: jscpd Kurulumu
         run: npm install -g jscpd
 
-      - name: Get changed files
+      - name: Değişen Dosyaları Al
         id: changed-files
         run: |
-          CHANGED_FILES=$(git diff --name-only $BASE_BRANCH HEAD | grep -Ei '\.js|\.ts|\.py|\.java|\.go|\.php|\.c|\.cpp|\.cs' || true) # Case-insensitive grep
-          echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
+          CHANGED_FILES=$(git diff --name-only $BASE_BRANCH HEAD | grep -Ei '\.(js|ts|py|java|go|php|c|cpp|cs|jsx|tsx|html|css|scss|less|json|xml|yaml|yml|sql|sh|bash|md|txt)$' || true)
+          echo "DEĞİŞEN_DOSYALAR=$CHANGED_FILES" >> $GITHUB_ENV
 
-          # Debugging steps (highly recommended to keep these)
+          # Hata ayıklama adımları (önerilir)
           echo "Debug: BASE_BRANCH: $(git merge-base origin/main HEAD)"
           echo "Debug: HEAD: $(git rev-parse HEAD)"
-          ls -l code # Or the directory where duplifile.cs is located
-          echo "Debug: grep command: grep -Ei '\.js|\.ts|\.py|\.java|\.go|\.php|\.c|\.cpp|\.cs' | grep -v '^$'"
-          echo "Debug: CHANGED_FILES: ${{ env.CHANGED_FILES }}"
+          ls -l  # Tüm dosyaları listele
+          echo "Debug: grep komutu: grep -Ei '\.(js|ts|...|txt)$' | grep -v '^$'"
+          echo "Debug: DEĞİŞEN_DOSYALAR: ${{ env.CHANGED_FILES }}"
 
           if [ -z "$CHANGED_FILES" ]; then
-            echo "No relevant files changed."
+            echo "Değişen dosya bulunamadı."
             exit 0
           fi
 
-      - name: Run jscpd only on changed files
+      - name: jscpd Çalıştır
         if: env.CHANGED_FILES != ''
-        run: jscpd --min-tokens 50 --reporters json ${{ env.CHANGED_FILES }} # Corrected: Removed --files
+        run: jscpd --min-tokens 50 --reporters json,html ${{ env.CHANGED_FILES }} || exit 1 # JSON ve HTML raporları
 
-      - name: Check for report.json and upload
+      - name: Raporları Kontrol Et ve Yükle
         if: env.CHANGED_FILES != ''
         run: |
           if [[ -f report.json ]]; then
-            echo "Uploading jscpd report..."
+            echo "jscpd raporu bulundu. Yükleniyor..."
             uses: actions/upload-artifact@v3
             with:
-              name: jscpd-report
+              name: jscpd-raporu
               path: report.json
           else
-            echo "No jscpd report generated (likely no duplication found)."
+            echo "jscpd raporu bulunamadı (muhtemelen tekrar eden kod yok)."
+          fi
+
+          if [[ -f report.html ]]; then
+            echo "jscpd HTML raporu bulundu. Yükleniyor..."
+            uses: actions/upload-artifact@v3
+            with:
+              name: jscpd-html-raporu
+              path: report.html
+          else
+            echo "jscpd HTML raporu bulunamadı."
           fi
