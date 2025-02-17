@@ -27,11 +27,17 @@ jobs:
       - name: Get changed files
         id: changed-files
         run: |
-          CHANGED_FILES=$(git diff --name-only origin/main | tr '\n' ' ')
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep -E '\.js|\.ts|\.py|\.java|\.go|\.php|\.c|\.cpp|\.cs' | tr '\n' ' ')
           echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
 
       - name: Run jscpd on changed files
         if: env.CHANGED_FILES != ''
         run: |
           echo "Changed files: $CHANGED_FILES"
-          jscpd --min-tokens 50 --threshold 1 --reporters console $CHANGED_FILES
+          jscpd --min-tokens 50 --threshold 1 --reporters json --output report.json $CHANGED_FILES
+
+      - name: Upload jscpd report as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: jscpd-report
+          path: report.json
