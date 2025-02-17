@@ -15,9 +15,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: Fetch full history
-        run: git fetch --prune --unshallow || true
+        with:
+          fetch-depth: 0  # Tüm commit geçmişini al
 
       - name: Install jscpd
         run: npm install -g jscpd
@@ -25,14 +24,16 @@ jobs:
       - name: Get changed files
         id: changed-files
         run: |
-          echo "CHANGED_FILES=$(git diff --name-only origin/${{ inputs.base_branch }} | grep -E '\.js|\.ts|\.py|\.java|\.go|\.php|\.c|\.cpp|\.cs' | tr '\n' ' ')" >> $GITHUB_ENV
+          CHANGED_FILES=$(git diff --name-only origin/${{ inputs.base_branch }} | grep -E '\.js|\.ts|\.py|\.java|\.go|\.php|\.c|\.cpp|\.cs' | tr '\n' ' ')
+          echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
+          echo "::set-output name=files::$CHANGED_FILES"
 
       - name: Run jscpd only on changed files
-        if: env.CHANGED_FILES != ''
-        run: jscpd --min-tokens 50 --reporters json --files ${{ env.CHANGED_FILES }}
+        if: steps.changed-files.outputs.files != ''
+        run: jscpd --min-tokens 50 --reporters json --files ${{ steps.changed-files.outputs.files }}
 
       - name: Upload jscpd report
         uses: actions/upload-artifact@v3
         with:
           name: jscpd-report
-          path: report.json
+          path: report.json
