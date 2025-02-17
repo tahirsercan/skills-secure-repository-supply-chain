@@ -13,7 +13,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Tüm commit geçmişini getir
+          fetch-depth: 0
 
       - name: Set base branch for comparison
         run: |
@@ -29,15 +29,22 @@ jobs:
           echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
           if [ -z "$CHANGED_FILES" ]; then
             echo "No relevant files changed."
-            exit 0
+            exit 0  # Important: Exit early if no files changed
           fi
 
       - name: Run jscpd only on changed files
         if: env.CHANGED_FILES != ''
         run: jscpd --min-tokens 50 --reporters json --files ${{ env.CHANGED_FILES }}
 
-      - name: Upload jscpd report
-        uses: actions/upload-artifact@v3
-        with:
-          name: jscpd-report
-          path: report.json
+      - name: Check for report.json and upload
+        if: env.CHANGED_FILES != ''  # Only run if files were checked
+        run: |
+          if [[ -f report.json ]]; then
+            echo "Uploading jscpd report..."
+            uses: actions/upload-artifact@v3
+            with:
+              name: jscpd-report
+              path: report.json
+          else
+            echo "No jscpd report generated (likely no duplication found)."
+          fi
