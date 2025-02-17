@@ -16,8 +16,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set base branch for comparison
-        run: |
-          echo "BASE_BRANCH=$(git merge-base origin/main HEAD)" >> $GITHUB_ENV
+        run: echo "BASE_BRANCH=$(git merge-base origin/main HEAD)" >> $GITHUB_ENV
 
       - name: Install jscpd
         run: npm install -g jscpd
@@ -25,19 +24,27 @@ jobs:
       - name: Get changed files
         id: changed-files
         run: |
-          CHANGED_FILES=$(git diff --name-only $BASE_BRANCH HEAD | grep -E '\.js|\.ts|\.py|\.java|\.go|\.php|\.c|\.cpp|\.cs' || true)
+          CHANGED_FILES=$(git diff --name-only $BASE_BRANCH HEAD | grep -Ei '\.js|\.ts|\.py|\.java|\.go|\.php|\.c|\.cpp|\.cs' || true) # Case-insensitive grep
           echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
+
+          # Debugging steps (highly recommended to keep these)
+          echo "Debug: BASE_BRANCH: $(git merge-base origin/main HEAD)"
+          echo "Debug: HEAD: $(git rev-parse HEAD)"
+          ls -l code # Or the directory where duplifile.cs is located
+          echo "Debug: grep command: grep -Ei '\.js|\.ts|\.py|\.java|\.go|\.php|\.c|\.cpp|\.cs' | grep -v '^$'"
+          echo "Debug: CHANGED_FILES: ${{ env.CHANGED_FILES }}"
+
           if [ -z "$CHANGED_FILES" ]; then
             echo "No relevant files changed."
-            exit 0  # Important: Exit early if no files changed
+            exit 0
           fi
 
       - name: Run jscpd only on changed files
         if: env.CHANGED_FILES != ''
-        run: jscpd --min-tokens 50 --reporters json --files ${{ env.CHANGED_FILES }}
+        run: jscpd --min-tokens 50 --reporters json ${{ env.CHANGED_FILES }} # Corrected: Removed --files
 
       - name: Check for report.json and upload
-        if: env.CHANGED_FILES != ''  # Only run if files were checked
+        if: env.CHANGED_FILES != ''
         run: |
           if [[ -f report.json ]]; then
             echo "Uploading jscpd report..."
