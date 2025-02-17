@@ -27,44 +27,50 @@ jobs:
       - name: Get Changed Files
         id: changed-files
         run: |
+          # Get changed files and debug output
+          git diff --name-only $BASE_BRANCH HEAD
           CHANGED_FILES=$(git diff --name-only $BASE_BRANCH HEAD | grep -Ei '\.(js|ts|py|java|go|php|c|cpp|cs|jsx|tsx|html|css|scss|less|json|xml|yaml|yml|sql|sh|bash|md|txt)$' || true)
           echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
-
-          # Debugging Steps (Essential)
-          echo "Debug: BASE_BRANCH: $(git merge-base origin/main HEAD)"
+          
+          # Debugging steps
+          echo "Debug: BASE_BRANCH: $BASE_BRANCH"
           echo "Debug: HEAD: $(git rev-parse HEAD)"
           ls -l  # List all files in the workspace
-          echo "Debug: grep command: grep -Ei '\.(js|ts|...|txt)$'"
+          echo "Debug: grep command: grep -Ei '\.(js|ts|py|java|go|php|c|cpp|cs|jsx|tsx|html|css|scss|less|json|xml|yaml|yml|sql|sh|bash|md|txt)$'"
           echo "Debug: CHANGED_FILES: ${{ env.CHANGED_FILES }}"
 
+          # Exit if no relevant files changed
           if [[ -z "$CHANGED_FILES" ]]; then
             echo "No relevant files changed."
             exit 0
           fi
 
       - name: Run jscpd
-        if: env.CHANGED_FILES != ''
+        if: ${{ env.CHANGED_FILES != '' }}
         run: |
-          mkdir jscpd-reports # Make the directory explicitly
-          echo "$CHANGED_FILES" | xargs jscpd --min-tokens 50 --reporters json,html --output-dir ./jscpd-reports || exit 1
-
-          # Display jscpd output (Optional, but very useful for quick feedback)
+          echo "Running jscpd on the following files: $CHANGED_FILES"
+          mkdir -p jscpd-reports  # Ensure directory exists
+          echo "$CHANGED_FILES" | xargs -I {} jscpd --min-tokens 50 --reporters json,html --output-dir ./jscpd-reports {}
+          
+          # Debug output for jscpd reports
           echo "jscpd JSON Report:"
-          cat jscpd-reports/report.json || true # Handle potential file absence
+          cat jscpd-reports/report.json || true
           echo "----------------------------------------"
           echo "jscpd HTML Report:"
-          cat jscpd-reports/report.html || true # Handle potential file absence
+          cat jscpd-reports/report.html || true
 
       - name: Upload Reports
-        if: env.CHANGED_FILES != ''
+        if: ${{ env.CHANGED_FILES != '' }}
         run: |
+          # Upload jscpd JSON report
           if [[ -f jscpd-reports/report.json ]]; then
             uses: actions/upload-artifact@v3
             with:
               name: jscpd-report
               path: jscpd-reports/report.json
           fi
-
+          
+          # Upload jscpd HTML report
           if [[ -f jscpd-reports/report.html ]]; then
             uses: actions/upload-artifact@v3
             with:
