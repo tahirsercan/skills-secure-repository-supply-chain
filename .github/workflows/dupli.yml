@@ -1,9 +1,12 @@
-name: jscpd PR Check
+name: Reusable jscpd Workflow
 
 on:
-  pull_request:
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      base_branch:
+        required: false
+        default: "main"
+        type: string
 
 jobs:
   jscpd-check:
@@ -12,12 +15,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
-      - name: Set base branch for comparison
-        run: |
-          echo "BASE_BRANCH=$(git merge-base origin/main HEAD)" >> $GITHUB_ENV
+      - name: Fetch full history
+        run: git fetch --prune --unshallow || true
 
       - name: Install jscpd
         run: npm install -g jscpd
@@ -25,26 +25,14 @@ jobs:
       - name: Get changed files
         id: changed-files
         run: |
-          CHANGED_FILES=$(git diff --name-only $BASE_BRANCH HEAD | grep -E '\.js|\.ts|\.py|\.java|\.go|\.php|\.c|\.cpp|\.cs' || true)
-          echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "No relevant files changed."
-            exit 0  # Important: Exit early if no files changed
-          fi
+          echo "CHANGED_FILES=$(git diff --name-only origin/${{ inputs.base_branch }} | grep -E '\.js|\.ts|\.py|\.java|\.go|\.php|\.c|\.cpp|\.cs' | tr '\n' ' ')" >> $GITHUB_ENV
 
       - name: Run jscpd only on changed files
         if: env.CHANGED_FILES != ''
         run: jscpd --min-tokens 50 --reporters json --files ${{ env.CHANGED_FILES }}
 
-      - name: Check for report.json and upload
-        if: env.CHANGED_FILES != ''  # Only run if files were checked
-        run: |
-          if [[ -f report.json ]]; then
-            echo "Uploading jscpd report..."
-            uses: actions/upload-artifact@v3
-            with:
-              name: jscpd-report
-              path: report.json
-          else
-            echo "No jscpd report generated (likely no duplication found)."
-          fi
+      - name: Upload jscpd report
+        uses: actions/upload-artifact@v3
+        with:
+          name: jscpd-report
+          path: report.json
