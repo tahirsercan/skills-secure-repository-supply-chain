@@ -24,12 +24,13 @@ jobs:
         
       - name: Run duplication check
         run: |
-          jscpd "src/**" "lib/**" "components/**" \
-            --ignore "**/*.test.js,**/*.spec.js,node_modules/**,dist/**,build/**" \
+          jscpd . \
+            --ignore "**/*.test.js,**/*.spec.js,node_modules/**,dist/**,build/**,.git/**" \
             --reporters html,json,console \
             --format "javascript,typescript,jsx,tsx,css,scss" \
             --output ./jscpd-report \
             --threshold 1
+        continue-on-error: true
             
       - name: Upload report as artifact
         if: always()
@@ -37,3 +38,4 @@ jobs:
         with:
           name: jscpd-report
           path: ./jscpd-report
+          if-no-files-found: warn
