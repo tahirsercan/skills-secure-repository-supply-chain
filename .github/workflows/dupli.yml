@@ -1,4 +1,4 @@
-name: jscpd-check
+,name: jscpd-check
 
 on:
   push:
@@ -23,12 +23,10 @@ jobs:
 
       - run: |
           mkdir -p jscpd-reports
-          npx jscpd --reporters json,html --output-dir jscpd-reports .
-
+          npx jscpd --reporters json,html --output jscpd-reports .  # Fixed flag here
       - run: |
           cat jscpd-reports/report.json || true
           npx jq -c '.duplicates[]' jscpd-reports/report.json || echo "No duplicates found"
-
       - uses: actions/upload-artifact@v4
         with:
           name: jscpd-reports
