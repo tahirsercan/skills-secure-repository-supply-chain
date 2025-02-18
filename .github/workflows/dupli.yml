@@ -19,22 +19,21 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18  # Daha kararlı bir sürüm kullan
+          node-version: 18
 
       - name: Install dependencies
         run: |
-          npm install -g commander
           npm install -g jscpd jq
 
       - name: Run jscpd
         run: |
-          mkdir -p jscpd-reports
-          npx jscpd --reporters json
+          mkdir -p jscpd-reports  # Create the target directory
+          npx jscpd --reporters json,html --output-dir jscpd-reports  # Specify output directory
 
       - name: Analyze jscpd results
         run: |
-          cat jscpd-reports/jscpd-report.json
-          npx jq -c '.duplicates[]' jscpd-reports/jscpd-report.json || echo "No duplicates found"
+          cat jscpd-reports/report.json || true # Handle the case where the file is missing
+          npx jq -c '.duplicates[]' jscpd-reports/report.json || echo "No duplicates found"
 
       - name: Upload jscpd reports
         uses: actions/upload-artifact@v4
