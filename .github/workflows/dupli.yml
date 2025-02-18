@@ -1,4 +1,4 @@
-,name: jscpd-check
+name: jscpd-check
 
 on:
   push:
