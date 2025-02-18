@@ -11,13 +11,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4 # Güncellendi
-
-      - name: Set base branch for comparison
-        run: echo "BASE_BRANCH=$(git merge-base origin/main HEAD)" >> $GITHUB_ENV
+        uses: actions/checkout@v4  # ✅ Updated to v4
 
       - name: Install jscpd & jq
         run: npm install -g jscpd jq
+
+      - name: Set base branch for comparison
+        run: echo "BASE_BRANCH=$(git merge-base origin/main HEAD)" >> $GITHUB_ENV
 
       - name: Get changed files
         id: changed-files
@@ -34,26 +34,12 @@ jobs:
         if: env.CHANGED_FILES != ''
         run: |
           mkdir -p jscpd-reports
-          jscpd --min-tokens 50 --reporters json,html --output-dir ./jscpd-reports || true
+          jscpd --min-tokens 50 --reporters json,html --output ./jscpd-reports || true
           
-          # JSON rapordan yüzdeyi çek
+          # Extract duplication percentage from JSON report
           DUPLICATION_PERCENTAGE=$(jq '.percentage' jscpd-reports/jscpd-report.json)
-          echo "Duplication Percentage: $DUPLICATION_PERCENTAGE"
+          echo "Duplication Percentage: $DUPLICATION_PERCENTAGE" >> $GITHUB_ENV
 
-          # Eğer yüzde 25'in üzerindeyse hata ver ve PR'de decorator (annotation) ekle
+          # If duplication exceeds 25%, fail the step
           if (( $(echo "$DUPLICATION_PERCENTAGE > 25" | bc -l) )); then
-            echo "::error title=High Code Duplication::Code duplication exceeded threshold ($DUPLICATION_PERCENTAGE% > 25%)"
-            exit 1
-          fi
-
-      - name: Generate GitHub PR Annotations (Decorators)
-        if: failure()
-        run: |
-          jq -c '.duplicates[]' jscpd-reports/jscpd-report.json | while read line; do
-            FILE=$(echo "$line" | jq -r '.firstFile')
-            START_LINE=$(echo "$line" | jq -r '.firstStartLine')
-            END_LINE=$(echo "$line" | jq -r '.firstEndLine')
-            echo "::error file=$FILE,line=$START_LINE,endLine=$END_LINE,title=Duplicate Code Detected::Code is duplicated in multiple locations."
-          done
-
-      - name:
+            echo "::error title=High Code Duplication::Code duplication exceeded threshold ($DUPLICATION_PERCENTA
