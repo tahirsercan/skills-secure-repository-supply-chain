@@ -22,14 +22,20 @@ jobs:
       - name: Install jscpd
         run: npm install -g jscpd
         
+      - name: List files
+        run: |
+          echo "Project contents:"
+          ls -la
+          
       - name: Run duplication check
         run: |
           jscpd . \
             --ignore "**/*.test.js,**/*.spec.js,node_modules/**,dist/**,build/**,.git/**" \
             --reporters html,json,console \
-            --format "javascript,typescript,jsx,tsx,css,scss" \
+            --format "javascript,typescript,jsx,tsx,css,scss,html,md" \
             --output ./jscpd-report \
-            --threshold 1
+            --threshold 1 \
+            -d
         continue-on-error: true
             
       - name: Upload report as artifact
