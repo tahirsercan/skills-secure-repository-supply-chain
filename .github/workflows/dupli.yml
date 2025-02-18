@@ -21,18 +21,17 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install dependencies
-        run: |
-          npm install -g jscpd jq
+      - name: Install jscpd (Globally)
+        run: npm install -g jscpd
 
       - name: Run jscpd
         run: |
-          mkdir -p jscpd-reports  # Create the target directory
-          npx jscpd --reporters json,html --output-dir jscpd-reports  # Specify output directory
+          mkdir -p jscpd-reports
+          jscpd --reporters json,html --output-dir jscpd-reports . # Note the dot (.) for current directory
 
       - name: Analyze jscpd results
         run: |
-          cat jscpd-reports/report.json || true # Handle the case where the file is missing
+          cat jscpd-reports/report.json || true
           npx jq -c '.duplicates[]' jscpd-reports/report.json || echo "No duplicates found"
 
       - name: Upload jscpd reports
