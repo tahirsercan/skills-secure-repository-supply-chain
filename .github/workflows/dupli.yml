@@ -1,79 +1,51 @@
 name: Code Duplication Check
 
 on:
+  push:
+    branches: [ main, master ]
   pull_request:
-    branches:
-      - main  # Or your main branch name
+    branches: [ main, master ]
+  # Manuel olarak çalıştırılabilmesi için
+  workflow_dispatch:
 
 jobs:
-  jscpd-check:
+  check-duplicates:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          fetch-depth: 0  # Retrieve full Git history
-
-      - name: Set Base Branch
-        id: set-base-branch
-        run: |
-          BASE_BRANCH=$(git merge-base origin/main HEAD)
-          echo "BASE_BRANCH=$BASE_BRANCH" >> $GITHUB_ENV
-
+          node-version: '18'
+          
       - name: Install jscpd
         run: npm install -g jscpd
-
-      - name: Get Changed Files
-        id: changed-files
+        
+      - name: Run duplication check
         run: |
-          # Get changed files and debug output
-          git diff --name-only $BASE_BRANCH HEAD
-          CHANGED_FILES=$(git diff --name-only $BASE_BRANCH HEAD | grep -Ei '\.(js|ts|py|java|go|php|c|cpp|cs|jsx|tsx|html|css|scss|less|json|xml|yaml|yml|sql|sh|bash|md|txt)$' || true)
-          echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
+          jscpd ./src \
+            --ignore "**/*.test.js,**/*.spec.js,node_modules/**,dist/**,build/**" \
+            --reporters html,json,console \
+            --format "javascript,typescript,jsx,tsx,css,scss" \
+            --output ./jscpd-report \
+            --threshold 1
+            
+      - name: Upload report as artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: jscpd-report
+          path: ./jscpd-report
           
-          # Debugging steps
-          echo "Debug: BASE_BRANCH: $BASE_BRANCH"
-          echo "Debug: HEAD: $(git rev-parse HEAD)"
-          ls -l  # List all files in the workspace
-          echo "Debug: grep command: grep -Ei '\.(js|ts|py|java|go|php|c|cpp|cs|jsx|tsx|html|css|scss|less|json|xml|yaml|yml|sql|sh|bash|md|txt)$'"
-          echo "Debug: CHANGED_FILES: ${{ env.CHANGED_FILES }}"
-
-          # Exit if no relevant files changed
-          if [[ -z "$CHANGED_FILES" ]]; then
-            echo "No relevant files changed."
-            exit 0
-          fi
-
-      - name: Run jscpd
-        if: ${{ env.CHANGED_FILES != '' }}
+      # İsteğe bağlı: Belirli bir eşiği aşan duplikasyonları hata olarak işaretleme
+      - name: Check duplication threshold
         run: |
-          echo "Running jscpd on the following files: $CHANGED_FILES"
-          mkdir -p jscpd-reports  # Ensure directory exists
-          echo "$CHANGED_FILES" | xargs -I {} jscpd --min-tokens 50 --reporters json,html --output-dir ./jscpd-reports {}
-          
-          # Debug output for jscpd reports
-          echo "jscpd JSON Report:"
-          cat jscpd-reports/report.json || true
-          echo "----------------------------------------"
-          echo "jscpd HTML Report:"
-          cat jscpd-reports/report.html || true
-
-      - name: Upload Reports
-        if: ${{ env.CHANGED_FILES != '' }}
-        run: |
-          # Upload jscpd JSON report
-          if [[ -f jscpd-reports/report.json ]]; then
-            uses: actions/upload-artifact@v3
-            with:
-              name: jscpd-report
-              path: jscpd-reports/report.json
-          fi
-          
-          # Upload jscpd HTML report
-          if [[ -f jscpd-reports/report.html ]]; then
-            uses: actions/upload-artifact@v3
-            with:
-              name: jscpd-html-report
-              path: jscpd-reports/report.html
+          if [ -f ./jscpd-report/jscpd-report.json ]; then
+            DUPLICATION=$(jq '.statistics.total.percentage' ./jscpd-report/jscpd-report.json)
+            if (( $(echo "$DUPLICATION > 5" | bc -l) )); then
+              echo "Duplication percentage ($DUPLICATION%) is above threshold (5%)"
+              exit 1
+            fi
           fi
