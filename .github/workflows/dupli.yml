@@ -19,30 +19,36 @@ jobs:
         with:
           node-version: 18
 
-      - run: npm install jscpd
+      - run: npm install jscpd jq  # Install both jscpd and jq
 
       - run: |
           mkdir -p jscpd-reports
-          npx jscpd --reporters json,html --output jscpd-reports .  # Fixed flag here
+          npx jscpd --reporters json,html --output jscpd-reports .  # Ensure jscpd output path is correct
 
       - run: |
-          cat jscpd-reports/report.json || true
-          npx jq -c '.duplicates[]' jscpd-reports/report.json || echo "No duplicates found"
-          
-          # Calculate duplication percentage
-          total_files=$(jq '.files | length' jscpd-reports/report.json)
-          duplicate_files=$(jq '.duplicates | length' jscpd-reports/report.json)
-          duplication_percentage=$((duplicate_files * 100 / total_files))
+          # Check if the report.json file exists
+          if [ -f jscpd-reports/report.json ]; then
+            cat jscpd-reports/report.json || true
+            npx jq -c '.duplicates[]' jscpd-reports/report.json || echo "No duplicates found"
+            
+            # Calculate duplication percentage
+            total_files=$(jq '.files | length' jscpd-reports/report.json)
+            duplicate_files=$(jq '.duplicates | length' jscpd-reports/report.json)
+            duplication_percentage=$((duplicate_files * 100 / total_files))
 
-          echo "Duplication Percentage: $duplication_percentage%"  # Output to GitHub Actions log
+            echo "Duplication Percentage: $duplication_percentage%"  # Output to GitHub Actions log
 
-          # Display summary with percentage
-          echo "## Duplication Report" >> $GITHUB_STEP_SUMMARY
-          echo "Duplication Percentage: $duplication_percentage%" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "$duplication_percentage" -ge 25 ]; then
-            echo "### :x: High duplication detected. Fail the build!" >> $GITHUB_STEP_SUMMARY
-            exit 1  # Fail the build if the duplication is over 25%
+            # Display summary with percentage
+            echo "## Duplication Report" >> $GITHUB_STEP_SUMMARY
+            echo "Duplication Percentage: $duplication_percentage%" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$duplication_percentage" -ge 25 ]; then
+              echo "### :x: High duplication detected. Fail the build!" >> $GITHUB_STEP_SUMMARY
+              exit 1  # Fail the build if the duplication is over 25%
+            fi
+          else
+            echo "No report found. Skipping duplication check."
+            exit 1  # Fail the build if no report is generated
           fi
 
       - uses: actions/upload-artifact@v4
