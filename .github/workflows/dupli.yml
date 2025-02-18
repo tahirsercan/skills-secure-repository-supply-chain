@@ -24,9 +24,27 @@ jobs:
       - run: |
           mkdir -p jscpd-reports
           npx jscpd --reporters json,html --output jscpd-reports .  # Fixed flag here
+
       - run: |
           cat jscpd-reports/report.json || true
           npx jq -c '.duplicates[]' jscpd-reports/report.json || echo "No duplicates found"
+          
+          # Calculate duplication percentage
+          total_files=$(jq '.files | length' jscpd-reports/report.json)
+          duplicate_files=$(jq '.duplicates | length' jscpd-reports/report.json)
+          duplication_percentage=$((duplicate_files * 100 / total_files))
+
+          echo "Duplication Percentage: $duplication_percentage%"  # Output to GitHub Actions log
+
+          # Display summary with percentage
+          echo "## Duplication Report" >> $GITHUB_STEP_SUMMARY
+          echo "Duplication Percentage: $duplication_percentage%" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$duplication_percentage" -ge 25 ]; then
+            echo "### :x: High duplication detected. Fail the build!" >> $GITHUB_STEP_SUMMARY
+            exit 1  # Fail the build if the duplication is over 25%
+          fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: jscpd-reports
