@@ -21,13 +21,13 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install jscpd (Globally)
-        run: npm install -g jscpd
+      - name: Install jscpd (Locally)
+        run: npm install jscpd
 
       - name: Run jscpd
         run: |
           mkdir -p jscpd-reports
-          jscpd --reporters json,html --output-dir jscpd-reports . # Note the dot (.) for current directory
+          ./node_modules/.bin/jscpd --reporters json,html --output-dir jscpd-reports .
 
       - name: Analyze jscpd results
         run: |
@@ -38,4 +38,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: jscpd-reports
-          path: jscpd-reports/
+          path: jscpd-reports//
