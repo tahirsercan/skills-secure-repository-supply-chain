@@ -24,6 +24,8 @@ jobs:
       - run: |
           mkdir -p jscpd-reports
           npx jscpd --reporters json,html --output jscpd-reports .  # Ensure jscpd output path is correct
+          ls -l jscpd-reports  # Check the directory contents to ensure the report is generated
+          cat jscpd-reports/*  # Show any files generated in the reports directory
 
       - run: |
           # Check if the report.json file exists
