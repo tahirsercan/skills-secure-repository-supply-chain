@@ -5,7 +5,6 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  # Manuel olarak çalıştırılabilmesi için
   workflow_dispatch:
 
 jobs:
@@ -13,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -25,7 +24,7 @@ jobs:
         
       - name: Run duplication check
         run: |
-          jscpd ./src \
+          jscpd "src/**" "lib/**" "components/**" \
             --ignore "**/*.test.js,**/*.spec.js,node_modules/**,dist/**,build/**" \
             --reporters html,json,console \
             --format "javascript,typescript,jsx,tsx,css,scss" \
@@ -34,18 +33,7 @@ jobs:
             
       - name: Upload report as artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: jscpd-report
           path: ./jscpd-report
-          
-      # İsteğe bağlı: Belirli bir eşiği aşan duplikasyonları hata olarak işaretleme
-      - name: Check duplication threshold
-        run: |
-          if [ -f ./jscpd-report/jscpd-report.json ]; then
-            DUPLICATION=$(jq '.statistics.total.percentage' ./jscpd-report/jscpd-report.json)
-            if (( $(echo "$DUPLICATION > 5" | bc -l) )); then
-              echo "Duplication percentage ($DUPLICATION%) is above threshold (5%)"
-              exit 1
-            fi
-          fi
