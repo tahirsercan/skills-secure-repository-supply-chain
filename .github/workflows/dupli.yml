@@ -13,29 +13,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      - name: Install jscpd (Locally)
-        run: npm install jscpd
+      - run: npm install jscpd
 
-      - name: Run jscpd
-        run: |
+      - run: |
           mkdir -p jscpd-reports
-          ./node_modules/.bin/jscpd --reporters json,html --output-dir jscpd-reports .
+          npx jscpd --reporters json,html --output-dir jscpd-reports .
 
-      - name: Analyze jscpd results
-        run: |
+      - run: |
           cat jscpd-reports/report.json || true
           npx jq -c '.duplicates[]' jscpd-reports/report.json || echo "No duplicates found"
 
-      - name: Upload jscpd reports
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: jscpd-reports
           path: jscpd-reports/
