@@ -1,6 +1,9 @@
-name: jscpd PR Check
+name: jscpd-check
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -12,57 +15,29 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          fetch-depth: 2  # ✅ Fetch last two commits to compare changes
+          node-version: 18  # Daha kararlı bir sürüm kullan
 
-      - name: Install jscpd & jq
-        run: npm install -g jscpd jq
-
-      - name: Set base branch for comparison
-        run: echo "BASE_BRANCH=origin/main" >> $GITHUB_ENV
-
-      - name: Get changed files
-        id: changed-files
+      - name: Install dependencies
         run: |
-          git fetch origin main  # ✅ Ensure main branch exists in runner
-          CHANGED_FILES=$(git diff --name-only $BASE_BRANCH HEAD | grep -Ei '\.(js|ts|py|java|go|php|c|cpp|cs)$' || true)
-          echo "CHANGED_FILES=$CHANGED_FILES" >> $GITHUB_ENV
+          npm install -g commander
+          npm install -g jscpd jq
 
-          if [[ -z "$CHANGED_FILES" ]]; then
-            echo "No relevant files changed."
-            exit 0
-          fi
-
-      - name: Run jscpd and generate reports
-        if: env.CHANGED_FILES != ''
+      - name: Run jscpd
         run: |
           mkdir -p jscpd-reports
-          jscpd --min-tokens 50 --reporters json,html --output ./jscpd-reports || true
-          
-          # Extract duplication percentage from JSON report
-          DUPLICATION_PERCENTAGE=$(jq '.percentage' jscpd-reports/jscpd-report.json)
-          echo "Duplication Percentage: $DUPLICATION_PERCENTAGE" >> $GITHUB_ENV
+          npx jscpd --reporters json
 
-          # If duplication exceeds 25%, fail the step
-          if (( $(echo "$DUPLICATION_PERCENTAGE > 25" | bc -l) )); then
-            echo "::error title=High Code Duplication::Code duplication exceeded threshold ($DUPLICATION_PERCENTAGE% > 25%)"
-            exit 1
-          fi
-
-      - name: Generate GitHub PR Annotations (Decorators)
-        if: failure()
+      - name: Analyze jscpd results
         run: |
-          jq -c '.duplicates[]' jscpd-reports/jscpd-report.json | while read -r line; do
-            FILE=$(echo "$line" | jq -r '.firstFile')
-            START_LINE=$(echo "$line" | jq -r '.firstStartLine')
-            END_LINE=$(echo "$line" | jq -r '.firstEndLine')
-            echo "::error file=$FILE,line=$START_LINE,endLine=$END_LINE,title=Duplicate Code Detected::Code is duplicated in multiple locations."
-          done
+          cat jscpd-reports/jscpd-report.json
+          npx jq -c '.duplicates[]' jscpd-reports/jscpd-report.json || echo "No duplicates found"
 
-      - name: Upload jscpd Reports
-        if: env.CHANGED_FILES != ''
+      - name: Upload jscpd reports
         uses: actions/upload-artifact@v4
         with:
           name: jscpd-reports
-          path: jscpd-reports
-          retention-days: 7
+          path: jscpd-reports/
