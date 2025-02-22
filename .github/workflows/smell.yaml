@@ -29,11 +29,16 @@ jobs:
           wget https://github.com/pmd/pmd/releases/download/pmd_releases%2F7.10.0/pmd-dist-7.10.0-bin.zip
           unzip pmd-dist-7.10.0-bin.zip
           chmod +x pmd-bin-7.10.0/bin/pmd
-          ./pmd-bin-7.10.0/bin/pmd check -d . -R rulesets/java/codesize.xml,rulesets/java/design.xml -f sarif -r pmd-report.sarif
+          ./pmd-bin-7.10.0/bin/pmd check \
+            -d . \
+            -R category/java/codesize.xml,category/java/design.xml \
+            -f sarif \
+            -r pmd-report.sarif \
+            --debug
 
       # SARIF sonuçlarını GitHub Code Scanning’e yükle
       - name: Upload PMD Report
-        if: always()  # Hata olsa bile rapor yüklenmesini sağlar
+        if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: pmd-report.sarif
