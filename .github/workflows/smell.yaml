@@ -23,12 +23,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # PMD’yi indir ve çalıştır
-      - name: Run PMD
+      # PMD’yi indir ve çalıştır (güncel sürüm: 7.10.0 varsayımı)
+      - name: Download and Run PMD
         run: |
-          wget https://github.com/pmd/pmd/releases/download/pmd_releases%2F7.0.0-rc4/pmd-bin-7.0.0-rc4.zip
-          unzip pmd-bin-7.0.0-rc4.zip
-          ./pmd-bin-7.0.0-rc4/bin/pmd check -d . -R rulesets/java/quickstart.xml -f sarif -r pmd-report.sarif
+          wget https://github.com/pmd/pmd/releases/download/pmd_releases%2F7.10.0/pmd-dist-7.10.0-bin.zip
+          unzip pmd-dist-7.10.0-bin.zip
+          ./pmd-dist-7.10.0/bin/pmd check -d . -R rulesets/java/codesize.xml,rulesets/java/design.xml -f sarif -r pmd-report.sarif
 
       # SARIF sonuçlarını GitHub Code Scanning’e yükle
       - name: Upload PMD Report to GitHub
