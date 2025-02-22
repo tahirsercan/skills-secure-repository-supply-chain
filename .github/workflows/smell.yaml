@@ -1,0 +1,37 @@
+name: PMD Code Smells Check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  pmd-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      # Kodları checkout yap
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Java ortamını kur (PMD için gerekli)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # PMD’yi indir ve çalıştır
+      - name: Run PMD
+        run: |
+          wget https://github.com/pmd/pmd/releases/download/pmd_releases%2F7.0.0-rc4/pmd-bin-7.0.0-rc4.zip
+          unzip pmd-bin-7.0.0-rc4.zip
+          ./pmd-bin-7.0.0-rc4/bin/pmd check -d . -R rulesets/java/quickstart.xml -f sarif -r pmd-report.sarif
+
+      # SARIF sonuçlarını GitHub Code Scanning’e yükle
+      - name: Upload PMD Report to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: pmd-report.sarif
